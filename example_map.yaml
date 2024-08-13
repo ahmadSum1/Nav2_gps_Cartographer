@@ -1,0 +1,7 @@
+image: map.pgm             # Name of the image file
+resolution: 0.05           # Resolution in meters/pixel
+origin: [0.0, 0.0, 0.0]    # Origin of the map [x, y, yaw] in meters and radians
+occupied_thresh: 0.65      # Threshold above which a cell is considered occupied
+free_thresh: 0.196         # Threshold below which a cell is considered free
+negate: 0                  # Whether to invert the colors (0 means no inversion)
+mode: trinary              # (Optional) Use trinary mode for map loading (0.65 for occupied, 0.196 for free)
