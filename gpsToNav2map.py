@@ -38,7 +38,7 @@ utm_points_sorted = sorted(utm_points, key=angle_from_centroid)
 padding = 10  # You can adjust this value
 width = int((max_x - min_x) / resolution) + 2 * padding
 height = int((max_y - min_y) / resolution) + 2 * padding
-image = Image.new('L', (width, height), 255)  # White background
+image = Image.new('L', (width, height), 0)  # black background (obstacle)
 draw = ImageDraw.Draw(image)
 
 # Convert UTM points to pixel coordinates for the polygon
@@ -48,8 +48,8 @@ polygon_points = [
     for x, y in utm_points_sorted
 ]
 
-# Draw and fill the polygon
-draw.polygon(polygon_points, fill=0)  # 0 is black for obstacles, 255 is white for free space
+# Draw and fill the polygon as unexplored region (mid-gray)
+draw.polygon(polygon_points, fill=205)  # 205 for unexplored
 
 # Save the map
 image.save('map_fixed.pgm')
