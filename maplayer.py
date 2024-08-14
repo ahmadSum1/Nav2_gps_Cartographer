@@ -95,9 +95,10 @@ def save_lat_lon_csv(points, tags):
     # Save to CSV
     df.to_csv(file_name, index=False)
     print(f"Lat-Long data saved as '{file_name}'")
+    return file_name
 
 
-def create_colored_image(gdf, layer, color="blue"):
+def create_colored_image(gdf, layer, color="blue", file_name="layer"):
     # Plot the GeoDataFrame and save it as a colored image
     fig, ax = plt.subplots()
     if gdf.empty or gdf.is_empty.all():
@@ -116,9 +117,9 @@ def create_colored_image(gdf, layer, color="blue"):
     ax.axis("off")
 
     # Save as colored image
-    plt.savefig(f"{layer}_colored.png", bbox_inches="tight", pad_inches=0, dpi=300)
+    plt.savefig(f"{file_name}_colored.png", bbox_inches="tight", pad_inches=0, dpi=300)
     plt.close(fig)
-    print(f"Image saved as '{layer}_colored.png'")
+    print(f"Image saved as '{file_name}_colored.png'")
 
     # # Input latitude and longitude in DMS format
     # lat_dms = "53°06'44.0\"N"
@@ -176,9 +177,9 @@ def main():
 
     # Save lat-lon data for each way
     for tags, points in tags_list:
-        save_lat_lon_csv(points, tags)
+        file_name = save_lat_lon_csv(points, tags)
 
-    create_colored_image(water_gdf, layer="water", color="blue")
+    create_colored_image(water_gdf, layer="water", color="blue", file_name=file_name)
 
     print("Processing completed.")
 
