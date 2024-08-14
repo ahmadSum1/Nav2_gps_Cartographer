@@ -2,9 +2,12 @@
 create global cost map (2d occupancy grid) for nav2 from GPS coordinates
 
 ## Usage
-### Create csv 
+### extract layer and Create csv for polygon
 ```bash
 python3 maplayer.py --lat "53.11222" --lon "8.82983" --radius 200
+```
+```bash
+python maplayer.py --osm-link "https://www.openstreetmap.org/way/330599214"
 ```
 ### create 2d occupancy gridmap
 
