@@ -29,6 +29,37 @@ def convert_to_decimal(coord_str):
         return float(coord_str)
 
 
+def fetch_data_from_osm_link(osm_link):
+    # Extract the way ID from the OSM link
+    way_id_match = re.search(r"/way/(\d+)", osm_link)
+    if not way_id_match:
+        raise ValueError("Invalid OSM link. Please provide a valid OpenStreetMap link.")
+
+    way_id = way_id_match.group(1)
+    osm_url = f"https://www.openstreetmap.org/api/0.6/way/{way_id}/full.json"
+    response = requests.get(osm_url)
+    data = response.json()
+
+    node_dict = {
+        element["id"]: (element["lon"], element["lat"])
+        for element in data["elements"]
+        if element["type"] == "node"
+    }
+
+    geometries = []
+    tags_list = []
+    for element in data["elements"]:
+        if element["type"] == "way" and str(element["id"]) == way_id:
+            points = [node_dict[node_id] for node_id in element["nodes"]]
+            geometries.append(Polygon(points))
+            tags_list.append((element["tags"], points))
+
+    if not geometries:
+        return gpd.GeoDataFrame(), []
+
+    return gpd.GeoDataFrame(geometry=geometries, crs="EPSG:4326"), tags_list
+
+
 def fetch_osm_data(lat, lon, radius=200, layer="water"):
     # Define the bounding box for the radius
     bbox = f"{lat-radius/111320},{lon-radius/111320},{lat+radius/111320},{lon+radius/111320}"
@@ -146,34 +177,46 @@ def main():
         type=str,
         help="Radius in meters for the area to fetch (default is 100 meters)",
     )
+    parser.add_argument(
+        "--osm-link",
+        type=str,
+        help='OpenStreetMap link (e.g., "https://www.openstreetmap.org/way/330599214")',
+    )
+
     args = parser.parse_args()
+    if args.osm_link:
+        water_gdf, tags_list = fetch_data_from_osm_link(args.osm_link)
+    else:
+        # Prompt for input if not provided
+        lat_str = (
+            args.lat
+            or input(
+                "Enter latitude in DMS or decimal format (default is 53°06'44.0\"N): "
+            )
+            or "53°06'44.0\"N"
+        )
+        lon_str = (
+            args.lon
+            or input(
+                "Enter longitude in DMS or decimal format (default is 8°49'47.4\"E): "
+            )
+            or "8°49'47.4\"E"
+        )
+        radius = (
+            args.radius
+            or input("Enter radius in meters (default is 200 meters): ")
+            or "200"
+        )
 
-    # Prompt for input if not provided
-    lat_str = (
-        args.lat
-        or input("Enter latitude in DMS or decimal format (default is 53°06'44.0\"N): ")
-        or "53°06'44.0\"N"
-    )
-    lon_str = (
-        args.lon
-        or input("Enter longitude in DMS or decimal format (default is 8°49'47.4\"E): ")
-        or "8°49'47.4\"E"
-    )
-    radius = (
-        args.radius
-        or input("Enter radius in meters (default is 200 meters): ")
-        or "200"
-    )
+        # Convert to decimal degrees if necessary
+        lat = convert_to_decimal(lat_str)
+        lon = convert_to_decimal(lon_str)
+        radius = int(float(radius))
 
-    # Convert to decimal degrees if necessary
-    lat = convert_to_decimal(lat_str)
-    lon = convert_to_decimal(lon_str)
-    radius = int(float(radius))
+        print(f"Got location: lat:{lat}, and lon:{lon} with radious:{radius}")
 
-    print(f"Got location: lat:{lat}, and lon:{lon} with radious:{radius}")
-
-    # Fetch and save water layer
-    water_gdf, tags_list = fetch_osm_data(lat, lon, radius=radius, layer="water")
+        # Fetch and save water layer
+        water_gdf, tags_list = fetch_osm_data(lat, lon, radius=radius, layer="water")
 
     # Save lat-lon data for each way
     for tags, points in tags_list:
