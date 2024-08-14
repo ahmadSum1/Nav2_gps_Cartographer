@@ -5,6 +5,7 @@ from shapely.geometry import Polygon
 import re
 import pandas as pd
 import os
+import argparse
 
 
 def dms_to_dd(dms_str):
@@ -15,6 +16,17 @@ def dms_to_dd(dms_str):
     if direction in ["S", "W"]:
         dd *= -1
     return dd
+
+
+def convert_to_decimal(coord_str):
+    """
+    Convert a coordinate string to decimal if it's in DMS format.
+    If it's already in decimal format, return it as a float.
+    """
+    if re.match(r'^\d{1,3}°\d{1,2}\'\d{1,2}\.\d+"[NSEW]$', coord_str.strip()):
+        return dms_to_dd(coord_str)
+    else:
+        return float(coord_str)
 
 
 def fetch_osm_data(lat, lon, radius=200, layer="water"):
@@ -37,12 +49,12 @@ def fetch_osm_data(lat, lon, radius=200, layer="water"):
     response = requests.get(overpass_url, params={"data": overpass_query})
     data = response.json()
 
-    # Print available elements for debugging
-    print(f"Data received for {layer} layer: {data}")
+    # # Print available elements for debugging
+    # print(f"Data received for {layer} layer: {data}")
 
     # Create a dictionary mapping node IDs to their lat/lon coordinates
     node_dict = {
-        element["id"]: (element["lat"], element["lon"])
+        element["id"]: (element["lon"], element["lat"])
         for element in data["elements"]
         if element["type"] == "node"
     }
@@ -75,8 +87,10 @@ def save_lat_lon_csv(points, tags):
         file_name = f"{base_file_name[:-4]}_{counter}.csv"
         counter += 1
 
-    # Convert points to DataFrame
-    df = pd.DataFrame(points, columns=["Latitude","Longitude"])
+    # Convert points to DataFrame with columns ordered as 'Latitude', 'Longitude'
+    df = pd.DataFrame(points, columns=["Longitude", "Latitude"])[
+        ["Latitude", "Longitude"]
+    ]
 
     # Save to CSV
     df.to_csv(file_name, index=False)
@@ -106,18 +120,59 @@ def create_colored_image(gdf, layer, color="blue"):
     plt.close(fig)
     print(f"Image saved as '{layer}_colored.png'")
 
+    # # Input latitude and longitude in DMS format
+    # lat_dms = "53°06'44.0\"N"
+    # lon_dms = "8°49'47.4\"E"
+
 
 def main():
-    # Input latitude and longitude in DMS format
-    lat_dms = "53°06'44.0\"N"
-    lon_dms = "8°49'47.4\"E"
+    # Command-line argument parsing
+    parser = argparse.ArgumentParser(
+        description="Fetch water layer data from OpenStreetMap and save as image and CSV."
+    )
+    parser.add_argument(
+        "--lat",
+        type=str,
+        help='Latitude in DMS or decimal format (e.g., "53°06\'44.0"N" or "53.11222")',
+    )
+    parser.add_argument(
+        "--lon",
+        type=str,
+        help='Longitude in DMS or decimal format (e.g., "8°49\'47.4"E" or "8.82983")',
+    )
+    parser.add_argument(
+        "--radius",
+        type=str,
+        help="Radius in meters for the area to fetch (default is 100 meters)",
+    )
+    args = parser.parse_args()
 
-    # Convert DMS to Decimal Degrees
-    lat = dms_to_dd(lat_dms)
-    lon = dms_to_dd(lon_dms)
+    # Prompt for input if not provided
+    lat_str = (
+        args.lat
+        or input("Enter latitude in DMS or decimal format (default is 53°06'44.0\"N): ")
+        or "53°06'44.0\"N"
+    )
+    lon_str = (
+        args.lon
+        or input("Enter longitude in DMS or decimal format (default is 8°49'47.4\"E): ")
+        or "8°49'47.4\"E"
+    )
+    radius = (
+        args.radius
+        or input("Enter radius in meters (default is 200 meters): ")
+        or "200"
+    )
+
+    # Convert to decimal degrees if necessary
+    lat = convert_to_decimal(lat_str)
+    lon = convert_to_decimal(lon_str)
+    radius = int(float(radius))
+
+    print(f"Got location: lat:{lat}, and lon:{lon} with radious:{radius}")
 
     # Fetch and save water layer
-    water_gdf, tags_list = fetch_osm_data(lat, lon, radius=200, layer="water")
+    water_gdf, tags_list = fetch_osm_data(lat, lon, radius=radius, layer="water")
 
     # Save lat-lon data for each way
     for tags, points in tags_list:
